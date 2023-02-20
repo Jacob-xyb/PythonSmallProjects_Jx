@@ -34,7 +34,7 @@ class PyCase:
         self.__get_state()
         self.mqtt_client.queue.queue.clear()
         PyLog().set_log("【消息队列已清空】")
-        PyLog().set_log("【Step1】 ==> 状态码:" + self.case.get("状态码"))
+        # PyLog().set_log("【Step1】 ==> 状态码:" + self.case.get("状态码"))  # 转移到 get_state 里面
         tmp_return = self.__start_step1()  # 执行获取报文前的操作
 
         if tmp_return["res"] == 0:
@@ -128,11 +128,13 @@ class PyCase:
         self.state = defaultdict(str)
         keys = ["串口相关操作", "是否断开ssh连接", "是否建立ssh连接", "ssh连接相关参数", "是否通过ssh下发命令",
                 "是否下发MQTT报文"]
-
+        key_value_text = ""
         for index, item_key in enumerate(keys):
             cell_value = self.case.get(item_key) or ''
+            key_value_text += f"{item_key}:{cell_value}\n"
             if "--" in cell_value:
                 self.state[chr(index + 65)] = cell_value.split('--')[1]
+        PyLog().set_log("【Step1】 ==> 触发动作执行:\n" + key_value_text.rstrip("\n"))
 
         # for idx, item in enumerate(self.case.get("状态码")):
         #     self.state[chr(idx + 65)] = item
@@ -295,23 +297,26 @@ class PyCase:
     def __get_message_res(self) -> dict:
         msg = None
         t1 = time.time()
+        flag = False  # 判断是否获取到对应的报文
+        message_idx = 0
 
-        while True:
+        while time.time() - t1 < 10:
             if self.mqtt_client.queue.empty() is False:
                 msg = self.mqtt_client.queue.get()
                 self.case_res["message"] = msg.payload
                 self.case_res["topic"] = msg.topic
                 IIDIOP = ParseMsg().get_IIDIOP(msg)
-                PyLog().set_log(f"IID&IOP:{IIDIOP} message:{self.case_res['message'].hex()}")
+                PyLog().set_log(f"IID&IOP【{message_idx}:02】:{IIDIOP} message:{self.case_res['message'].hex()}")
                 # print(f"IID&IOP: {IIDIOP}")
-
-                if IIDIOP.lower() == self.case.get("IID&IOP").lower():
+                if IIDIOP.lower() == self.case.get("IID&IOP").lower() and not flag:
                     self.msg = msg
-                    self.mqtt_client.queue.queue.clear()
-                    return {"res": 1}
+                    flag = True
+                    # self.mqtt_client.queue.queue.clear()
             # print(time.time())  # 调试用 判断是否进入无限循环队列
-            if time.time() - t1 > 10:
-                return {"res": 0, "error_info": "报文获取超时"}
+        if not flag:
+            return {"res": 0, "error_info": "报文获取超时"}
+        else:
+            return {"res": 1}
 
     def __get_url_ip(self):
         ip_list = os.popen("netstat -an").read().split('\n')[4:]
