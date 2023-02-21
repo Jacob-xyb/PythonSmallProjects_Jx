@@ -300,19 +300,23 @@ class PyCase:
         flag = False  # 判断是否获取到对应的报文
         message_idx = 0
 
+        # 10s内只打印符合要求的报文
         while time.time() - t1 < 10:
             if self.mqtt_client.queue.empty() is False:
                 msg = self.mqtt_client.queue.get()
                 self.case_res["message"] = msg.payload
                 self.case_res["topic"] = msg.topic
                 IIDIOP = ParseMsg().get_IIDIOP(msg)
-                PyLog().set_log(f"IID&IOP【{message_idx}:02】:{IIDIOP} message:{self.case_res['message'].hex()}")
                 # print(f"IID&IOP: {IIDIOP}")
-                if IIDIOP.lower() == self.case.get("IID&IOP").lower() and not flag:
-                    self.msg = msg
-                    flag = True
+                if IIDIOP.lower() == self.case.get("IID&IOP").lower():
+                    PyLog().set_log(f"IID&IOP【{message_idx}:02】:{IIDIOP} message:{self.case_res['message'].hex()}")
+                    if not flag:
+                        self.msg = msg
+                        flag = True
                     # self.mqtt_client.queue.queue.clear()
+                message_idx += 1
             # print(time.time())  # 调试用 判断是否进入无限循环队列
+        self.mqtt_client.queue.queue.clear()
         if not flag:
             return {"res": 0, "error_info": "报文获取超时"}
         else:
