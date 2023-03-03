@@ -215,7 +215,7 @@ class tk_ui:
             show='headings',  # 隐藏首列
             yscrollcommand=ybar.set,
         )
-        ybar['command'] = self.TreeView_case.yview
+        ybar['command'] = self.TreeView_case_result.yview
         self.TreeView_case_result.heading('序号', text='序号')  # 定义表头
         self.TreeView_case_result.heading('用例名称', text='用例名称')  # 定义表头
         self.TreeView_case_result.heading('执行结果', text='执行结果')  # 定义表头
